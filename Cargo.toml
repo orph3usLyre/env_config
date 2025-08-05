@@ -1,0 +1,17 @@
+[package]
+name = "env_config"
+version = "0.1.0"
+edition = "2024"
+authors = ["orph3uslyre"]
+description = "Simple derive macro library for loading configuration structs from ENV variables"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["config", "env"]
+repository = "https://github.com/orph3usLyre/env_config"
+
+[dependencies]
+env_config_derive = { path = "env_config_derive" }
+thiserror = "2.0.12"
+
+[dev-dependencies]
+once_cell = "1.21.3"
