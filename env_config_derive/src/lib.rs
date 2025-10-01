@@ -39,9 +39,10 @@ impl PrefixConfig {
 /// - `#[env_config(skip)]` - skip this field (won't load from env) (must implement Default)
 /// - `#[env_config(env = "VAR_NAME")]` - specify custom env var name
 /// - `#[env_config(default = "value")]` - specify default value  
-/// - `#[env_config(optional)]` - make field optional (must be Option<T>)
-/// - `#[env_config(parse_with = "function_name")]` - use custom parser function (takes String, returns T)
+/// - `#[env_config(parse_with = "function_name")]` - use custom parser function (signature: `fn(String) -> T`)
 /// - `#[env_config(nested)]` - treat field as nested EnvConfig struct (calls T::from_env())
+///
+/// Note: Optional fields are automatically detected from Option<T> type - no attribute needed!
 #[proc_macro_derive(EnvConfig, attributes(env_config))]
 pub fn derive_env_config(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -121,17 +122,28 @@ fn parse_struct_prefix_config(input: &DeriveInput) -> PrefixConfig {
     prefix_config
 }
 
+fn is_option_type(ty: &syn::Type) -> bool {
+    if let syn::Type::Path(type_path) = ty {
+        if type_path.qself.is_none() {
+            if let Some(segment) = type_path.path.segments.last() {
+                return segment.ident == "Option";
+            }
+        }
+    }
+    false
+}
+
 fn generate_field_assignment(
     field: &Field,
     prefix_config: &PrefixConfig,
 ) -> proc_macro2::TokenStream {
     let field_name = field.ident.as_ref().unwrap();
     let field_name_str = field_name.to_string();
+    let field_type = &field.ty;
 
     // Parse attributes
     let mut env_name = prefix_config.apply_to_field(&field_name_str);
     let mut default_expr: Option<syn::Expr> = None;
-    let mut is_optional = false;
     let mut skip = false;
     let mut parse_with: Option<syn::Expr> = None;
     let mut is_nested = false;
@@ -162,17 +174,12 @@ fn generate_field_assignment(
                                 }
                             }
                             Meta::NameValue(name_value) if name_value.path.is_ident("default") => {
-                                // Store the entire expression, not just the string value
                                 default_expr = Some(name_value.value.clone());
                             }
                             Meta::NameValue(name_value)
                                 if name_value.path.is_ident("parse_with") =>
                             {
-                                // Store the parser function expression
                                 parse_with = Some(name_value.value.clone());
-                            }
-                            Meta::Path(path) if path.is_ident("optional") => {
-                                is_optional = true;
                             }
                             _ => {}
                         }
@@ -183,7 +190,7 @@ fn generate_field_assignment(
     }
 
     // Validate attribute combinations
-    if skip && (default_expr.is_some() || is_optional || parse_with.is_some() || is_nested) {
+    if skip && (default_expr.is_some() || parse_with.is_some() || is_nested) {
         panic!("Cannot use 'skip' with other attributes");
     }
 
@@ -204,7 +211,6 @@ fn generate_field_assignment(
 
     // Handle nested EnvConfig structs
     if is_nested {
-        let field_type = &field.ty;
         return quote! {
             #field_name: #field_type::from_env()
                 .map_err(|e| ::env_config::EnvConfigError::Parse(
@@ -216,7 +222,6 @@ fn generate_field_assignment(
 
     // Handle fields with custom parser
     if let Some(parser_fn) = parse_with {
-        // Convert string literal to function identifier
         let parser_ident = if let syn::Expr::Lit(syn::ExprLit {
             lit: Lit::Str(lit_str),
             ..
@@ -225,13 +230,12 @@ fn generate_field_assignment(
             let fn_name = lit_str.value();
             syn::Ident::new(&fn_name, lit_str.span())
         } else {
-            // If it's not a string literal, assume it's already a valid expression
             return quote! {
                 compile_error!("parse_with must be a string literal containing the function name")
             };
         };
 
-        return if is_optional {
+        return if is_option_type(field_type) {
             quote! {
                 #field_name: ::env_config::env_var_optional_with_parser(#env_name, #parser_ident)?
             }
@@ -242,25 +246,21 @@ fn generate_field_assignment(
         };
     }
 
-    // Generate the appropriate call based on attributes (existing logic)
-    match (default_expr, is_optional) {
-        (Some(default), false) => {
-            quote! {
-                #field_name: ::env_config::env_var_or_parse(#env_name, #default)?
-            }
+    // Handle default
+    if let Some(default) = default_expr {
+        return quote! {
+            #field_name: ::env_config::env_var_or_parse(#env_name, #default)?
+        };
+    }
+
+    // Standard field - type determines behavior (T vs Option<T>)
+    if is_option_type(field_type) {
+        quote! {
+            #field_name: ::env_config::env_var_optional(#env_name)?
         }
-        (None, true) => {
-            quote! {
-                #field_name: ::env_config::env_var_optional(#env_name)?
-            }
-        }
-        (None, false) => {
-            quote! {
-                #field_name: ::env_config::env_var(#env_name)?
-            }
-        }
-        (Some(_), true) => {
-            panic!("Cannot use both 'default' and 'optional' attributes on the same field")
+    } else {
+        quote! {
+            #field_name: ::env_config::env_var(#env_name)?
         }
     }
 }

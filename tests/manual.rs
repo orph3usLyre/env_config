@@ -1,5 +1,5 @@
 // Manual implementation tests (what users can do without macros)
-use env_config::{EnvConfig, EnvConfigError, env_var, env_var_optional, env_var_or};
+use env_config::{EnvConfig, EnvConfigError, env_var, env_var_optional};
 
 mod common;
 
@@ -19,9 +19,9 @@ impl EnvConfig for ManualConfig {
         Ok(ManualConfig {
             nats_auth: env_var("NATS_AUTH")?,
             nats_seed: env_var("NATS_SEED")?,
-            port: env_var_or("PORT", 8080)?,
+            port: env_var_optional("PORT")?.unwrap_or(8080),
             timeout: env_var_optional("TIMEOUT")?,
-            debug: env_var_or("DEBUG", false)?,
+            debug: env_var_optional("DEBUG")?.unwrap_or(false),
         })
     }
 }

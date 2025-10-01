@@ -27,6 +27,7 @@ fn main() -> Result<(), env_config::EnvConfigError> {
 }
 
 #[derive(Debug, EnvConfig, PartialEq, PartialOrd)]
+#[env_config(no_prefix)]
 struct AppConfig {
     // Regular field with automatic parsing
     port: u16, // -> PORT
@@ -39,9 +40,9 @@ struct AppConfig {
     #[env_config(env = "APP_NAME", parse_with = "to_uppercase")]
     application_name: String, // -> APP_NAME
 
-    // Optional field with custom parser
-    #[env_config(optional, parse_with = "parse_point")]
-    destination: Option<Point>, // -> DESTINATION
+    // Optional field with custom parser - no 'optional' attribute needed!
+    #[env_config(parse_with = "parse_point")]
+    destination: Option<Point>, // -> DESTINATION (automatically optional from Option<T> type)
 }
 
 // Custom parser that converts a string to uppercase
