@@ -121,6 +121,6 @@ fn main() -> Result<(), env_config::EnvConfigError> {
 - `EnvConfigError::Parse(String, String)`: Failed to parse value (Key, Value)
 
 
-## License
+### License
 
-Apache License 2.0
+Dual-licensed under Apache 2.0 and MIT terms.
