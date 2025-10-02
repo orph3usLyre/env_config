@@ -1,6 +1,6 @@
 //!
 //! ```rust
-//! use env_config::EnvConfig;
+//! use env_cfg::EnvConfig;
 //! use std::time::Duration;
 //!
 //! #[derive(Debug, EnvConfig)]
@@ -10,50 +10,50 @@
 //!     url: String, // -> APP_CONFIG_URL (required)
 //!
 //!     // if a default value is provided, that value is used as a fallback
-//!     #[env_config(default = "8080")]
+//!     #[env_cfg(default = "8080")]
 //!     port: u16, // -> APP_CONFIG_PORT (with default)
 //!
 //!     timeout: Option<u64>, // -> APP_CONFIG_TIMEOUT (optional)
 //!
 //!     // custom ENV variable keys can be provided with `env = "CUSTOM_NAME"`
-//!     #[env_config(env = "DEBUG_MODE")]
+//!     #[env_cfg(env = "DEBUG_MODE")]
 //!     debug: bool, // -> DEBUG_MODE (custom name)
 //!
 //!     // fields marked with `skip` will always use the `Default` impl for the type
-//!     #[env_config(skip)]
+//!     #[env_cfg(skip)]
 //!     internal_state: Option<String>, // Skipped - uses Default::default()
 //!
 //!     // fields marked with `parse_with = "my_fn_name"` will use the provided function to parse the env variable.
 //!     // These functions must have the signature `fn(String) -> T`
-//!     #[env_config(parse_with = "parse_point")]
+//!     #[env_cfg(parse_with = "parse_point")]
 //!     position: Point, // -> APP_CONFIG_POSITION (with custom parser)
 //!
 //!     // fields marked with `parse_with = "my_fn_name"` can also be optional
-//!     #[env_config(parse_with = "parse_timeout_with_default")]
+//!     #[env_cfg(parse_with = "parse_timeout_with_default")]
 //!     timeout_duration: Option<Duration>, // -> APP_CONFIG_TIMEOUT_DURATION (with custom parser that provides defaults)
 //!
-//!     #[env_config(nested)]
+//!     #[env_cfg(nested)]
 //!     db_config: DatabaseConfig,
 //!
-//!     #[env_config(nested)]
+//!     #[env_cfg(nested)]
 //!     redis_config: RedisConfig,
 //! }
 //!
 //! #[derive(Debug, EnvConfig)]
 //! // Use no_prefix to disable the struct name prefix
-//! #[env_config(no_prefix)]
+//! #[env_cfg(no_prefix)]
 //! struct DatabaseConfig {
 //!     postgres_url: String, // -> POSTGRES_URL
-//!     #[env_config(env = "DB_NAME", default = "mydb")]
+//!     #[env_cfg(env = "DB_NAME", default = "mydb")]
 //!     database: String, // -> DB_NAME (with default)
 //! }
 //!
 //! #[derive(Debug, EnvConfig)]
 //! // Use custom prefix instead of struct name
-//! #[env_config(prefix = "REDIS")]
+//! #[env_cfg(prefix = "REDIS")]
 //! struct RedisConfig {
 //!     url: String, // -> REDIS_URL
-//!     #[env_config(default = "5")]
+//!     #[env_cfg(default = "5")]
 //!     cache_timeout: u64, // -> REDIS_CACHE_TIMEOUT (with default)
 //! }
 //!
@@ -75,7 +75,7 @@
 //!     Duration::from_secs(s.parse::<u64>().unwrap_or(100))
 //! }
 //!
-//! fn main() -> Result<(), env_config::EnvConfigError> {
+//! fn main() -> Result<(), env_cfg::EnvConfigError> {
 //!     // Set some environment variables for demonstration
 //!     //
 //!     // # Safety
@@ -99,7 +99,7 @@
 use std::str::FromStr;
 
 // Re-export the derive macro
-pub use env_config_derive::EnvConfig;
+pub use env_cfg_derive::EnvConfig;
 
 /// Trait for loading configuration from environment variables.
 ///
@@ -108,28 +108,28 @@ pub use env_config_derive::EnvConfig;
 /// # Derive Macro Example
 ///
 /// ```rust
-/// use env_config::*;
+/// use env_cfg::*;
 ///
 /// #[derive(Debug, EnvConfig)]
 /// struct AppConfig {
 ///     database_url: String,                          // -> APP_CONFIG_DATABASE_URL (required)
 ///     timeout: Option<u64>,                          // -> APP_CONFIG_TIMEOUT (optional)
-///     #[env_config(env = "DEBUG_MODE")]
+///     #[env_cfg(env = "DEBUG_MODE")]
 ///     debug: bool,                                   // -> DEBUG_MODE (custom name)
-///     #[env_config(skip)]
+///     #[env_cfg(skip)]
 ///     internal_state: String,                        // Skipped - uses Default::default()
 /// }
 ///
 /// // Use no_prefix to disable the struct name prefix
 /// #[derive(Debug, EnvConfig)]
-/// #[env_config(no_prefix)]
+/// #[env_cfg(no_prefix)]
 /// struct SimpleConfig {
 ///     database_url: String,                          // -> DATABASE_URL (no prefix)
 /// }
 ///
 /// // Use custom prefix instead of struct name
 /// #[derive(Debug, EnvConfig)]
-/// #[env_config(prefix = "APP")]
+/// #[env_cfg(prefix = "APP")]
 /// struct CustomConfig {
 ///     database_url: String,                          // -> APP_DATABASE_URL (custom prefix)
 /// }
@@ -138,16 +138,16 @@ pub use env_config_derive::EnvConfig;
 /// # Derive Macro Attributes
 ///
 /// **Struct-level attributes:**
-/// - **`#[env_config(no_prefix)]`**: Don't use struct name as prefix for field names
-/// - **`#[env_config(prefix = "PREFIX")]`**: Use custom prefix instead of struct name
+/// - **`#[env_cfg(no_prefix)]`**: Don't use struct name as prefix for field names
+/// - **`#[env_cfg(prefix = "PREFIX")]`**: Use custom prefix instead of struct name
 ///
 /// **Field-level attributes:**
 /// - **No attribute**: Field name is prefixed with struct name and converted to UPPER_SNAKE_CASE
-/// - **`#[env_config(env = "VAR_NAME")]`**: Use custom environment variable name
-/// - **`#[env_config(default = "value")]`**: Provide default value if env var not set
-/// - **`#[env_config(skip)]`**: Skip this field (must implement `Default`)
-/// - **`#[env_config(parse_with = "function_name")]`**: Use custom parser function (takes `String`, returns `T`)
-/// - **`#[env_config(nested)]`**: Treat field as nested EnvConfig struct (calls `T::from_env()`)
+/// - **`#[env_cfg(env = "VAR_NAME")]`**: Use custom environment variable name
+/// - **`#[env_cfg(default = "value")]`**: Provide default value if env var not set
+/// - **`#[env_cfg(skip)]`**: Skip this field (must implement `Default`)
+/// - **`#[env_cfg(parse_with = "function_name")]`**: Use custom parser function (takes `String`, returns `T`)
+/// - **`#[env_cfg(nested)]`**: Treat field as nested EnvConfig struct (calls `T::from_env()`)
 pub trait EnvConfig: Sized {
     /// Error type returned by `from_env()`.
     type Error;

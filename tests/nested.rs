@@ -1,43 +1,43 @@
 // Nested EnvConfig tests
-use env_config::{EnvConfig, EnvConfigError};
+use env_cfg::{EnvConfig, EnvConfigError};
 
 mod common;
 
 #[derive(Debug, EnvConfig, PartialEq)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct DatabaseConfig {
     host: String, // -> HOST
     port: u16,    // -> PORT
-    #[env_config(default = "myapp")]
+    #[env_cfg(default = "myapp")]
     database: String, // -> DATABASE
 }
 
 #[derive(Debug, EnvConfig, PartialEq)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct RedisConfig {
-    #[env_config(env = "REDIS_URL")]
+    #[env_cfg(env = "REDIS_URL")]
     url: String, // -> REDIS_URL
-    #[env_config(env = "REDIS_TIMEOUT", default = "5")]
+    #[env_cfg(env = "REDIS_TIMEOUT", default = "5")]
     timeout: u64, // -> REDIS_TIMEOUT
 }
 
 #[derive(Debug, EnvConfig, PartialEq)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct AppConfig {
-    #[env_config(nested)]
+    #[env_cfg(nested)]
     database: DatabaseConfig,
 
-    #[env_config(default = "info")]
+    #[env_cfg(default = "info")]
     log_level: String, // -> LOG_LEVEL
 }
 
 #[derive(Debug, EnvConfig, PartialEq)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct MultiNestedConfig {
-    #[env_config(nested)]
+    #[env_cfg(nested)]
     database: DatabaseConfig,
 
-    #[env_config(nested)]
+    #[env_cfg(nested)]
     redis: RedisConfig,
 
     app_name: String, // -> APP_NAME
@@ -160,7 +160,7 @@ fn test_nested_with_parse_with_should_not_compile() {
     //
     // #[derive(EnvConfig)]
     // struct InvalidConfig {
-    //     #[env_config(nested, parse_with = "some_parser")]
+    //     #[env_cfg(nested, parse_with = "some_parser")]
     //     field: SomeType,
     // }
     //
@@ -173,7 +173,7 @@ fn test_nested_with_default_should_not_compile() {
     //
     // #[derive(EnvConfig)]
     // struct InvalidConfig {
-    //     #[env_config(nested, default = "something")]
+    //     #[env_cfg(nested, default = "something")]
     //     field: SomeType,
     // }
     //

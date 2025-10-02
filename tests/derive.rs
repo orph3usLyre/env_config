@@ -1,35 +1,35 @@
 // Derive macro tests
-use env_config::{EnvConfig, EnvConfigError};
+use env_cfg::{EnvConfig, EnvConfigError};
 
 mod common;
 
 #[derive(Debug, EnvConfig)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct AutoDerivedConfig {
     database_url: String, // -> DATABASE_URL
     api_key: String,      // -> API_KEY
     max_connections: u32, // -> MAX_CONNECTIONS
-    #[env_config(default = "8080")]
+    #[env_cfg(default = "8080")]
     port: u16, // -> PORT (with default)
     timeout: Option<u64>, // -> TIMEOUT (optional)
-    #[env_config(skip)]
+    #[env_cfg(skip)]
     internal_state: String, // Skipped - not loaded from env, uses Default::default()
 }
 
 #[derive(Debug, EnvConfig)]
 struct CustomAttributesDerivedConfig {
-    #[env_config(env = "DB_HOST")]
+    #[env_cfg(env = "DB_HOST")]
     host: String, // -> DB_HOST (custom name)
-    #[env_config(env = "DB_PORT", default = "5432")]
+    #[env_cfg(env = "DB_PORT", default = "5432")]
     port: u16, // -> DB_PORT (custom name + default)
-    #[env_config(env = "DB_TIMEOUT")]
+    #[env_cfg(env = "DB_TIMEOUT")]
     timeout: Option<u64>, // -> DB_TIMEOUT (custom name + optional)
-    #[env_config(skip)]
+    #[env_cfg(skip)]
     connection_pool: Vec<String>, // Skipped, uses Default::default()
 }
 
 #[derive(Debug, EnvConfig)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct TypeVarietyTest {
     string_field: String,            // -> STRING_FIELD
     int_field: i32,                  // -> INT_FIELD
@@ -40,27 +40,27 @@ struct TypeVarietyTest {
 }
 
 #[derive(Debug, EnvConfig)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct MixedAttributesTest {
-    #[env_config(env = "CUSTOM_NAME")]
+    #[env_cfg(env = "CUSTOM_NAME")]
     field1: String, // -> CUSTOM_NAME
-    #[env_config(env = "ANOTHER_CUSTOM", default = "42")]
+    #[env_cfg(env = "ANOTHER_CUSTOM", default = "42")]
     field2: i32, // -> ANOTHER_CUSTOM (with default)
-    #[env_config(env = "OPTIONAL_CUSTOM")]
+    #[env_cfg(env = "OPTIONAL_CUSTOM")]
     field3: Option<String>, // -> OPTIONAL_CUSTOM (optional)
     auto_field: String, // -> AUTO_FIELD (auto snake_case)
-    #[env_config(skip)]
+    #[env_cfg(skip)]
     skipped_field: Vec<i32>, // Skipped
 }
 
 #[derive(Debug, EnvConfig)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct CustomParserTest {
-    #[env_config(parse_with = "parse_custom_struct")]
+    #[env_cfg(parse_with = "parse_custom_struct")]
     custom_field: CustomStruct, // -> CUSTOM_FIELD
-    #[env_config(env = "DOUBLED", parse_with = "parse_doubled_int")]
+    #[env_cfg(env = "DOUBLED", parse_with = "parse_doubled_int")]
     doubled_value: i32, // -> DOUBLED (custom name + custom parser)
-    #[env_config(parse_with = "parse_doubled_int")]
+    #[env_cfg(parse_with = "parse_doubled_int")]
     optional_doubled: Option<i32>, // -> OPTIONAL_DOUBLED (optional + custom parser)
     normal_field: String, // -> NORMAL_FIELD
 }
@@ -169,7 +169,7 @@ fn should_parse_custom_names_with_defaults() {
 #[test]
 fn should_handle_case_conversion() {
     #[derive(Debug, EnvConfig)]
-    #[env_config(no_prefix)]
+    #[env_cfg(no_prefix)]
     struct SnakeCaseTest {
         simple_field: String,          // -> SIMPLE_FIELD
         very_long_field_name: String,  // -> VERY_LONG_FIELD_NAME
@@ -239,10 +239,10 @@ fn should_err_with_missing_required_field() {
     ];
 
     #[derive(Debug, EnvConfig)]
-    #[env_config(no_prefix)]
+    #[env_cfg(no_prefix)]
     #[allow(dead_code)]
     struct ErrorHandlingTest {
-        #[env_config(default = "default_value")]
+        #[env_cfg(default = "default_value")]
         with_default: String, // -> WITH_DEFAULT
         optional_field: Option<String>, // -> OPTIONAL_FIELD
         required_field: String,         // -> REQUIRED_FIELD
@@ -351,13 +351,13 @@ fn should_parse_with_custom_parser_and_missing_optional() {
 #[test]
 fn should_parse_with_all_fields_skipped() {
     #[derive(Debug, EnvConfig)]
-    #[env_config(no_prefix)]
+    #[env_cfg(no_prefix)]
     struct AllSkippedTest {
-        #[env_config(skip)]
+        #[env_cfg(skip)]
         field1: String,
-        #[env_config(skip)]
+        #[env_cfg(skip)]
         field2: i32,
-        #[env_config(skip)]
+        #[env_cfg(skip)]
         field3: Vec<String>,
     }
 
@@ -400,17 +400,17 @@ fn should_parse_boolean_variants() {
 #[test]
 fn should_parse_with_complex_defaults() {
     #[derive(Debug, EnvConfig)]
-    #[env_config(no_prefix)]
+    #[env_cfg(no_prefix)]
     struct ComplexDefaultsTest {
-        #[env_config(default = "localhost")]
+        #[env_cfg(default = "localhost")]
         host: String,
-        #[env_config(default = "5432")]
+        #[env_cfg(default = "5432")]
         port: u16,
-        #[env_config(default = "false")]
+        #[env_cfg(default = "false")]
         ssl: bool,
-        #[env_config(default = "30")]
+        #[env_cfg(default = "30")]
         timeout: u64,
-        #[env_config(default = "3.999")]
+        #[env_cfg(default = "3.999")]
         rate: f64,
     }
 
@@ -430,7 +430,7 @@ fn should_parse_with_complex_defaults() {
 #[test]
 fn should_parse_edge_case_field_names() {
     #[derive(Debug, EnvConfig)]
-    #[env_config(no_prefix)]
+    #[env_cfg(no_prefix)]
     struct EdgeCaseNamesTest {
         a: String,      // -> A
         ab: String,     // -> AB

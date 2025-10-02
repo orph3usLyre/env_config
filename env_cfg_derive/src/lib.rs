@@ -41,18 +41,18 @@ impl PrefixConfig {
 /// By default, maps struct field names to STRUCT_NAME_FIELD_NAME in UPPER_SNAKE_CASE environment variables.
 ///
 /// Supports struct-level attributes:
-/// - `#[env_config(no_prefix)]` - disable prefix, use field names directly
-/// - `#[env_config(prefix = "PREFIX")]` - use custom prefix instead of struct name
+/// - `#[env_cfg(no_prefix)]` - disable prefix, use field names directly
+/// - `#[env_cfg(prefix = "PREFIX")]` - use custom prefix instead of struct name
 ///
 /// Supports field-level attributes:
-/// - `#[env_config(skip)]` - skip this field (won't load from env) (must implement Default)
-/// - `#[env_config(env = "VAR_NAME")]` - specify custom env var name
-/// - `#[env_config(default = "value")]` - specify default value  
-/// - `#[env_config(parse_with = "function_name")]` - use custom parser function (signature: `fn(String) -> T`)
-/// - `#[env_config(nested)]` - treat field as nested EnvConfig struct (calls T::from_env())
+/// - `#[env_cfg(skip)]` - skip this field (won't load from env) (must implement Default)
+/// - `#[env_cfg(env = "VAR_NAME")]` - specify custom env var name
+/// - `#[env_cfg(default = "value")]` - specify default value  
+/// - `#[env_cfg(parse_with = "function_name")]` - use custom parser function (signature: `fn(String) -> T`)
+/// - `#[env_cfg(nested)]` - treat field as nested EnvConfig struct (calls T::from_env())
 ///
-#[proc_macro_derive(EnvConfig, attributes(env_config))]
-pub fn derive_env_config(input: TokenStream) -> TokenStream {
+#[proc_macro_derive(EnvConfig, attributes(env_cfg))]
+pub fn derive_env_cfg(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     // Parse struct-level attributes for prefix configuration
@@ -62,12 +62,12 @@ pub fn derive_env_config(input: TokenStream) -> TokenStream {
         Err(e) => return e.into(),
     };
 
-    expand_env_config(input, &prefix_config)
+    expand_env_cfg(input, &prefix_config)
         .unwrap_or_else(syn::Error::into_compile_error)
         .into()
 }
 
-fn expand_env_config(
+fn expand_env_cfg(
     input: DeriveInput,
     prefix_config: &PrefixConfig,
 ) -> syn::Result<proc_macro2::TokenStream> {
@@ -97,8 +97,8 @@ fn expand_env_config(
     let field_assignments = field_assignments?;
 
     let expanded = quote! {
-        impl ::env_config::EnvConfig for #name {
-            type Error = ::env_config::EnvConfigError;
+        impl ::env_cfg::EnvConfig for #name {
+            type Error = ::env_cfg::EnvConfigError;
 
             fn from_env() -> Result<Self, Self::Error> {
                 Ok(Self {
@@ -122,7 +122,7 @@ fn parse_struct_prefix_config(input: &DeriveInput) -> syn::Result<PrefixConfig> 
 
     // Check for struct-level attributes
     for attr in &input.attrs {
-        if attr.path().is_ident("env_config") {
+        if attr.path().is_ident("env_cfg") {
             if let Meta::List(meta_list) = &attr.meta {
                 let nested_metas = meta_list.parse_args_with(
                     syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
@@ -202,7 +202,7 @@ fn generate_field_assignment(
     let mut is_nested = false;
 
     for attr in &field.attrs {
-        if attr.path().is_ident("env_config") {
+        if attr.path().is_ident("env_cfg") {
             if let Meta::List(meta_list) = &attr.meta {
                 let nested_result = meta_list.parse_args_with(
                     syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
@@ -282,7 +282,7 @@ fn generate_field_assignment(
     if is_nested {
         return Ok(quote! {
             #field_name: #field_type::from_env()
-                .map_err(|e| ::env_config::EnvConfigError::Parse(
+                .map_err(|e| ::env_cfg::EnvConfigError::Parse(
                     format!("nested {}", stringify!(#field_type)),
                     e.to_string()
                 ))?
@@ -307,11 +307,11 @@ fn generate_field_assignment(
 
         return if is_option_type(field_type) {
             Ok(quote! {
-                #field_name: ::env_config::env_var_optional_with_parser(#env_name, #parser_ident)?
+                #field_name: ::env_cfg::env_var_optional_with_parser(#env_name, #parser_ident)?
             })
         } else {
             Ok(quote! {
-                #field_name: ::env_config::env_var_with_parser(#env_name, #parser_ident)?
+                #field_name: ::env_cfg::env_var_with_parser(#env_name, #parser_ident)?
             })
         };
     }
@@ -319,18 +319,18 @@ fn generate_field_assignment(
     // Handle default
     if let Some(default) = default_expr {
         return Ok(quote! {
-            #field_name: ::env_config::env_var_or_parse(#env_name, #default)?
+            #field_name: ::env_cfg::env_var_or_parse(#env_name, #default)?
         });
     }
 
     // Standard field - type determines behavior (T vs Option<T>)
     if is_option_type(field_type) {
         Ok(quote! {
-            #field_name: ::env_config::env_var_optional(#env_name)?
+            #field_name: ::env_cfg::env_var_optional(#env_name)?
         })
     } else {
         Ok(quote! {
-            #field_name: ::env_config::env_var(#env_name)?
+            #field_name: ::env_cfg::env_var(#env_name)?
         })
     }
 }

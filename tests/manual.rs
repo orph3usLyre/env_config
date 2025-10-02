@@ -1,5 +1,5 @@
 // Manual implementation tests (what users can do without macros)
-use env_config::{EnvConfig, EnvConfigError, env_var, env_var_optional};
+use env_cfg::{EnvConfig, EnvConfigError, env_var, env_var_optional};
 
 mod common;
 

@@ -3,7 +3,7 @@
 version = 4
 
 [[package]]
-name = "env_config_derive"
+name = "env_cfg_derive"
 version = "0.2.0"
 dependencies = [
  "heck",

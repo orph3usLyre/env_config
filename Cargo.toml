@@ -1,5 +1,5 @@
 [package]
-name = "env_config"
+name = "env_cfg"
 version = "0.2.0"
 edition = "2024"
 authors = ["orph3uslyre"]
@@ -10,7 +10,7 @@ keywords = ["config", "env"]
 repository = "https://github.com/orph3usLyre/env_config"
 
 [dependencies]
-env_config_derive = { path = "env_config_derive", version = "0.2.0" }
+env_cfg_derive = { path = "env_cfg_derive", version = "0.2.0" }
 thiserror = "2.0.12"
 
 [dev-dependencies]

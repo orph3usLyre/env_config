@@ -1,4 +1,4 @@
-use env_config::{EnvConfig, EnvConfigError};
+use env_cfg::{EnvConfig, EnvConfigError};
 
 mod common;
 
@@ -11,7 +11,7 @@ struct DefaultPrefixConfig {
 
 // Test no_prefix attribute
 #[derive(Debug, EnvConfig)]
-#[env_config(no_prefix)]
+#[env_cfg(no_prefix)]
 struct NoPrefixConfig {
     database_url: String,
     port: u16,
@@ -19,7 +19,7 @@ struct NoPrefixConfig {
 
 // Test custom prefix attribute
 #[derive(Debug, EnvConfig)]
-#[env_config(prefix = "APP")]
+#[env_cfg(prefix = "APP")]
 struct CustomPrefixConfig {
     database_url: String,
     port: u16,
@@ -27,9 +27,9 @@ struct CustomPrefixConfig {
 
 // Test mixed with field-level env attribute (should override prefix)
 #[derive(Debug, EnvConfig)]
-#[env_config(prefix = "TEST")]
+#[env_cfg(prefix = "TEST")]
 struct MixedPrefixConfig {
-    #[env_config(env = "CUSTOM_URL")]
+    #[env_cfg(env = "CUSTOM_URL")]
     database_url: String,
     port: u16, // This should use TEST_PORT
 }

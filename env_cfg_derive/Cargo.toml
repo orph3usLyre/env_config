@@ -1,5 +1,5 @@
 [package]
-name = "env_config_derive"
+name = "env_cfg_derive"
 version = "0.2.0"
 edition = "2024"
 description = "Derive macros for env_config"
