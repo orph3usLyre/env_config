@@ -1,6 +1,6 @@
 [package]
 name = "env_config"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["orph3uslyre"]
 description = "Simple derive macro library for loading configuration structs from ENV variables"
@@ -10,7 +10,7 @@ keywords = ["config", "env"]
 repository = "https://github.com/orph3usLyre/env_config"
 
 [dependencies]
-env_config_derive = { path = "env_config_derive" }
+env_config_derive = { path = "env_config_derive", version = "0.2.0" }
 thiserror = "2.0.12"
 
 [dev-dependencies]
