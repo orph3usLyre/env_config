@@ -11,7 +11,6 @@ struct AutoDerivedConfig {
     max_connections: u32, // -> MAX_CONNECTIONS
     #[env_config(default = "8080")]
     port: u16, // -> PORT (with default)
-    #[env_config(optional)]
     timeout: Option<u64>, // -> TIMEOUT (optional)
     #[env_config(skip)]
     internal_state: String, // Skipped - not loaded from env, uses Default::default()
@@ -23,7 +22,7 @@ struct CustomAttributesDerivedConfig {
     host: String, // -> DB_HOST (custom name)
     #[env_config(env = "DB_PORT", default = "5432")]
     port: u16, // -> DB_PORT (custom name + default)
-    #[env_config(env = "DB_TIMEOUT", optional)]
+    #[env_config(env = "DB_TIMEOUT")]
     timeout: Option<u64>, // -> DB_TIMEOUT (custom name + optional)
     #[env_config(skip)]
     connection_pool: Vec<String>, // Skipped, uses Default::default()
@@ -32,13 +31,11 @@ struct CustomAttributesDerivedConfig {
 #[derive(Debug, EnvConfig)]
 #[env_config(no_prefix)]
 struct TypeVarietyTest {
-    string_field: String, // -> STRING_FIELD
-    int_field: i32,       // -> INT_FIELD
-    float_field: f64,     // -> FLOAT_FIELD
-    bool_field: bool,     // -> BOOL_FIELD
-    #[env_config(optional)]
-    optional_int: Option<i32>, // -> OPTIONAL_INT
-    #[env_config(optional)]
+    string_field: String,            // -> STRING_FIELD
+    int_field: i32,                  // -> INT_FIELD
+    float_field: f64,                // -> FLOAT_FIELD
+    bool_field: bool,                // -> BOOL_FIELD
+    optional_int: Option<i32>,       // -> OPTIONAL_INT
     optional_string: Option<String>, // -> OPTIONAL_STRING
 }
 
@@ -49,7 +46,7 @@ struct MixedAttributesTest {
     field1: String, // -> CUSTOM_NAME
     #[env_config(env = "ANOTHER_CUSTOM", default = "42")]
     field2: i32, // -> ANOTHER_CUSTOM (with default)
-    #[env_config(env = "OPTIONAL_CUSTOM", optional)]
+    #[env_config(env = "OPTIONAL_CUSTOM")]
     field3: Option<String>, // -> OPTIONAL_CUSTOM (optional)
     auto_field: String, // -> AUTO_FIELD (auto snake_case)
     #[env_config(skip)]
@@ -63,7 +60,7 @@ struct CustomParserTest {
     custom_field: CustomStruct, // -> CUSTOM_FIELD
     #[env_config(env = "DOUBLED", parse_with = "parse_doubled_int")]
     doubled_value: i32, // -> DOUBLED (custom name + custom parser)
-    #[env_config(optional, parse_with = "parse_doubled_int")]
+    #[env_config(parse_with = "parse_doubled_int")]
     optional_doubled: Option<i32>, // -> OPTIONAL_DOUBLED (optional + custom parser)
     normal_field: String, // -> NORMAL_FIELD
 }
@@ -199,7 +196,7 @@ fn should_parse_type_variety() {
     const ENV_KEYS_VALUES: &[(&str, &str)] = &[
         ("STRING_FIELD", "test_string"),
         ("INT_FIELD", "42"),
-        ("FLOAT_FIELD", "3.14"),
+        ("FLOAT_FIELD", "3.999"),
         ("BOOL_FIELD", "true"),
         ("OPTIONAL_INT", "123"),
         ("OPTIONAL_STRING", "optional_value"),
@@ -209,8 +206,8 @@ fn should_parse_type_variety() {
 
     assert_eq!(config.string_field, "test_string");
     assert_eq!(config.int_field, 42);
-    assert_eq!((config.float_field - 3.14).abs() < f64::EPSILON, true);
-    assert_eq!(config.bool_field, true);
+    assert!((config.float_field - 3.999).abs() < f64::EPSILON);
+    assert!(config.bool_field);
     assert_eq!(config.optional_int, Some(123));
     assert_eq!(config.optional_string, Some("optional_value".to_string()));
 }
@@ -220,7 +217,7 @@ fn should_parse_type_variety_with_missing_optionals() {
     const ENV_KEYS_VALUES: &[(&str, &str)] = &[
         ("STRING_FIELD", "test_string"),
         ("INT_FIELD", "42"),
-        ("FLOAT_FIELD", "3.14"),
+        ("FLOAT_FIELD", "3.999"),
         ("BOOL_FIELD", "false"),
         // Don't set optional fields
     ];
@@ -228,8 +225,8 @@ fn should_parse_type_variety_with_missing_optionals() {
         unsafe { common::with_env_vars(ENV_KEYS_VALUES, || TypeVarietyTest::from_env().unwrap()) };
     assert_eq!(config.string_field, "test_string");
     assert_eq!(config.int_field, 42);
-    assert_eq!((config.float_field - 3.14).abs() < f64::EPSILON, true);
-    assert_eq!(config.bool_field, false);
+    assert!((config.float_field - 3.999).abs() < f64::EPSILON);
+    assert!(!config.bool_field);
     assert_eq!(config.optional_int, None);
     assert_eq!(config.optional_string, None);
 }
@@ -247,13 +244,11 @@ fn should_err_with_missing_required_field() {
     struct ErrorHandlingTest {
         #[env_config(default = "default_value")]
         with_default: String, // -> WITH_DEFAULT
-        #[env_config(optional)]
         optional_field: Option<String>, // -> OPTIONAL_FIELD
-        required_field: String, // -> REQUIRED_FIELD
+        required_field: String,         // -> REQUIRED_FIELD
     }
 
-    let result =
-        unsafe { common::with_env_vars(ENV_KEYS_VALUES, || ErrorHandlingTest::from_env()) };
+    let result = unsafe { common::with_env_vars(ENV_KEYS_VALUES, ErrorHandlingTest::from_env) };
     assert!(matches!(result, Err(EnvConfigError::Missing(var)) if var == "REQUIRED_FIELD"));
 }
 
@@ -262,11 +257,11 @@ fn should_err_if_fields_cannot_be_parsed() {
     const ENV_KEYS_VALUES: &[(&str, &str)] = &[
         ("STRING_FIELD", "valid_string"),
         ("INT_FIELD", "not_a_number"),
-        ("FLOAT_FIELD", "3.14"),
+        ("FLOAT_FIELD", "3.999"),
         ("BOOL_FIELD", "true"),
         // Don't set optional fields
     ];
-    let result = unsafe { common::with_env_vars(ENV_KEYS_VALUES, || TypeVarietyTest::from_env()) };
+    let result = unsafe { common::with_env_vars(ENV_KEYS_VALUES, TypeVarietyTest::from_env) };
 
     assert!(matches!(result, Err(EnvConfigError::Parse(var, _)) if var == "INT_FIELD"));
 }
@@ -387,7 +382,7 @@ fn should_parse_boolean_variants() {
     ];
     let config =
         unsafe { common::with_env_vars(ENV_KEYS_VALUES, || TypeVarietyTest::from_env().unwrap()) };
-    assert_eq!(config.bool_field, true);
+    assert!(config.bool_field);
 
     const ENV_KEYS_VALUES_2: &[(&str, &str)] = &[
         ("STRING_FIELD", "test"),
@@ -399,7 +394,7 @@ fn should_parse_boolean_variants() {
         common::with_env_vars(ENV_KEYS_VALUES_2, || TypeVarietyTest::from_env().unwrap())
     };
 
-    assert_eq!(config.bool_field, false);
+    assert!(!config.bool_field);
 }
 
 #[test]
@@ -415,7 +410,7 @@ fn should_parse_with_complex_defaults() {
         ssl: bool,
         #[env_config(default = "30")]
         timeout: u64,
-        #[env_config(default = "3.14")]
+        #[env_config(default = "3.999")]
         rate: f64,
     }
 
@@ -427,9 +422,9 @@ fn should_parse_with_complex_defaults() {
     let config = ComplexDefaultsTest::from_env().unwrap();
     assert_eq!(config.host, "localhost");
     assert_eq!(config.port, 5432);
-    assert_eq!(config.ssl, false);
+    assert!(!config.ssl);
     assert_eq!(config.timeout, 30);
-    assert_eq!((config.rate - 3.14).abs() < f64::EPSILON, true);
+    assert!((config.rate - 3.999).abs() < f64::EPSILON);
 }
 
 #[test]

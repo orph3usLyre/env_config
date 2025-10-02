@@ -1,5 +1,5 @@
 // Manual implementation tests (what users can do without macros)
-use env_config::{EnvConfig, EnvConfigError, env_var, env_var_optional, env_var_or};
+use env_config::{EnvConfig, EnvConfigError, env_var, env_var_optional};
 
 mod common;
 
@@ -19,9 +19,9 @@ impl EnvConfig for ManualConfig {
         Ok(ManualConfig {
             nats_auth: env_var("NATS_AUTH")?,
             nats_seed: env_var("NATS_SEED")?,
-            port: env_var_or("PORT", 8080)?,
+            port: env_var_optional("PORT")?.unwrap_or(8080),
             timeout: env_var_optional("TIMEOUT")?,
-            debug: env_var_or("DEBUG", false)?,
+            debug: env_var_optional("DEBUG")?.unwrap_or(false),
         })
     }
 }
@@ -43,7 +43,7 @@ fn should_parse_from_manual_impl() {
     assert_eq!(config.nats_seed, "test_seed");
     assert_eq!(config.port, 9090);
     assert_eq!(config.timeout, Some(30));
-    assert_eq!(config.debug, true);
+    assert!(config.debug);
 }
 
 #[test]
@@ -58,12 +58,12 @@ fn should_parse_manual_impl_with_defaults() {
     assert_eq!(config.nats_seed, "test_seed");
     assert_eq!(config.port, 8080); // default
     assert_eq!(config.timeout, None); // optional, not set
-    assert_eq!(config.debug, false); // default
+    assert!(!config.debug); // default
 }
 
 #[test]
 fn should_err_if_missing_required_var() {
-    let result = unsafe { common::with_env_vars(&[], || ManualConfig::from_env()) };
+    let result = unsafe { common::with_env_vars(&[], ManualConfig::from_env) };
     dbg!(&result);
     assert!(matches!(result, Err(EnvConfigError::Missing(_))));
 }
@@ -76,6 +76,6 @@ fn should_err_if_field_is_not_parseable() {
         ("PORT", "not_a_number"),
     ];
 
-    let result = unsafe { common::with_env_vars(ENV_KEYS_VALUES, || ManualConfig::from_env()) };
+    let result = unsafe { common::with_env_vars(ENV_KEYS_VALUES, ManualConfig::from_env) };
     assert!(matches!(result, Err(EnvConfigError::Parse(_, _))));
 }

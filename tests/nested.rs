@@ -106,7 +106,7 @@ fn should_propagate_nested_config_errors() {
         ("LOG_LEVEL", "debug"),
     ];
 
-    let result = unsafe { common::with_env_vars(ENV_VARS, || AppConfig::from_env()) };
+    let result = unsafe { common::with_env_vars(ENV_VARS, AppConfig::from_env) };
 
     if let Err(EnvConfigError::Parse(var, _)) = result {
         assert!(var.contains("nested DatabaseConfig"));
@@ -123,7 +123,7 @@ fn should_fail_when_nested_required_vars_missing() {
         ("LOG_LEVEL", "debug"),
     ];
 
-    let result = unsafe { common::with_env_vars(ENV_VARS, || AppConfig::from_env()) };
+    let result = unsafe { common::with_env_vars(ENV_VARS, AppConfig::from_env) };
 
     if let Err(EnvConfigError::Parse(var, _)) = result {
         assert!(var.contains("nested DatabaseConfig"));

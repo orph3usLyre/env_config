@@ -1,6 +1,6 @@
 # env_config
 
-A simple Rust library for loading configuration from environment variables.
+A rust derive macro library for loading configuration from environment variables.
 
 ## Usage
 
@@ -19,8 +19,6 @@ struct AppConfig {
     #[env_config(default = "8080")]
     port: u16,                                     // -> APP_CONFIG_PORT (with default)
 
-    // if `optional` is set, it will use `None` if not found. This can only be implemented for `Option<T>`
-    #[env_config(optional)]
     timeout: Option<u64>,                          // -> APP_CONFIG_TIMEOUT (optional)
 
     // custom ENV variable keys can be provided with `env = "CUSTOM_NAME"`
@@ -32,9 +30,13 @@ struct AppConfig {
     internal_state: String,                        // Skipped - uses Default::default()
 
     // fields marked with `parse_with = "my_fn_name"` will use the provided function to parse the env variable.
-    // These functions must have the signature `(s: String) -> T`
+    // These functions must have the signature `fn(String) -> T`
     #[env_config(parse_with = "parse_point")] 
     position: Point,  // -> APP_CONFIG_POSITION (with custom parser)
+    
+    // fields marked with `parse_with = "my_fn_name"` can also be optional
+    #[env_config(parse_with = "parse_timeout_with_default")]
+    timeout: Option<u32>,  // -> APP_CONFIG_TIMEOUT (with optional parser that provides defaults)
 }
 
 // Use no_prefix to disable the struct name prefix
@@ -66,7 +68,7 @@ fn parse_point(s: String) -> Point {
 
 fn main() -> Result<(), env_config::EnvConfigError> {
     let config = AppConfig::from_env()?;
-    println!("Config: {:?}", config);
+    println!("Config: {config:?}");
     Ok(())
 }
 ```
@@ -118,55 +120,19 @@ fn main() -> Result<(), env_config::EnvConfigError> {
 }
 ```
 
-### Manual Implementation
-
-```rust
-use env_config::{EnvConfig, EnvConfigError, env_var, env_var_or, env_var_optional};
-
-#[derive(Debug)]
-struct AppConfig {
-    database_url: String,
-    port: u16,
-    debug: bool,
-    timeout: Option<u64>,
-}
-
-impl EnvConfig for AppConfig {
-    type Error = EnvConfigError;
-    
-    fn from_env() -> Result<Self, Self::Error> {
-        Ok(AppConfig {
-            database_url: env_var("DATABASE_URL")?,    // Required
-            port: env_var_or("PORT", 8080)?,           // Default to 8080
-            debug: env_var_or("DEBUG", false)?,        // Default to false
-            timeout: env_var_optional("TIMEOUT")?,     // Optional
-        })
-    }
-}
-```
-
 ## Derive Macro Attributes
 
-**Struct-level attributes:**
+**Struct attributes:**
 - **`#[env_config(no_prefix)]`**: Don't use struct name as prefix for field names
 - **`#[env_config(prefix = "PREFIX")]`**: Use custom prefix instead of struct name
 
-**Field-level attributes:**
+**Field attributes:**
 - **No attribute**: Field name is prefixed with struct name and converted to UPPER_SNAKE_CASE for env var name
 - **`#[env_config(env = "VAR_NAME")]`**: Use custom environment variable name (overrides prefix)
 - **`#[env_config(default = "value")]`**: Provide default value if env var not set
-- **`#[env_config(optional)]`**: Make field optional (must be `Option<T>`)
 - **`#[env_config(skip)]`**: Skip this field (uses `Default::default()`)
 - **`#[env_config(parse_with = "function_name")]`**: Use custom parser function (takes `String`, returns `T`)
 - **`#[env_config(nested)]`**: Treat field as nested EnvConfig struct (calls `T::from_env()`)
-
-## Helper Functions
-
-- **`env_var<T>(name)`**: Load a required environment variable
-- **`env_var_optional<T>(name)`**: Load an optional environment variable (returns `Option<T>`)
-- **`env_var_or<T>(name, default)`**: Load an environment variable with a default value
-- **`env_var_with_parser<T, F>(name, parser)`**: Load a required environment variable with custom parser
-- **`env_var_optional_with_parser<T, F>(name, parser)`**: Load an optional environment variable with custom parser
 
 ## Error variants
 

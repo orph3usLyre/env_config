@@ -25,7 +25,7 @@ pub unsafe fn with_env_vars<U, F: FnOnce() -> U + std::panic::UnwindSafe>(
     }
 
     // run the test
-    let result = std::panic::catch_unwind(|| test());
+    let result = std::panic::catch_unwind(test);
 
     // clean up
     for (key, _) in vars {
