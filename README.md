@@ -4,118 +4,99 @@ A rust derive macro library for loading configuration from environment variables
 
 ## Usage
 
-### Derive Macro 
-
 ```rust
 use env_config::EnvConfig;
+use std::time::Duration;
 
 #[derive(Debug, EnvConfig)]
 struct AppConfig {
     // By default, we search for ENV variables using STRUCT_NAME_FIELD_NAME in SCREAMING_SNAKE_CASE.
     // `database_url` will be loaded from `APP_CONFIG_DATABASE_URL`
-    database_url: String,                          // -> APP_CONFIG_DATABASE_URL (required)
+    url: String, // -> APP_CONFIG_URL (required)
 
     // if a default value is provided, that value is used as a fallback
     #[env_config(default = "8080")]
-    port: u16,                                     // -> APP_CONFIG_PORT (with default)
+    port: u16, // -> APP_CONFIG_PORT (with default)
 
-    timeout: Option<u64>,                          // -> APP_CONFIG_TIMEOUT (optional)
+    timeout: Option<u64>, // -> APP_CONFIG_TIMEOUT (optional)
 
     // custom ENV variable keys can be provided with `env = "CUSTOM_NAME"`
     #[env_config(env = "DEBUG_MODE")]
-    debug: bool,                                   // -> DEBUG_MODE (custom name)
+    debug: bool, // -> DEBUG_MODE (custom name)
 
     // fields marked with `skip` will always use the `Default` impl for the type
     #[env_config(skip)]
-    internal_state: String,                        // Skipped - uses Default::default()
+    internal_state: Option<String>, // Skipped - uses Default::default()
 
     // fields marked with `parse_with = "my_fn_name"` will use the provided function to parse the env variable.
     // These functions must have the signature `fn(String) -> T`
-    #[env_config(parse_with = "parse_point")] 
-    position: Point,  // -> APP_CONFIG_POSITION (with custom parser)
-    
+    #[env_config(parse_with = "parse_point")]
+    position: Point, // -> APP_CONFIG_POSITION (with custom parser)
+
     // fields marked with `parse_with = "my_fn_name"` can also be optional
     #[env_config(parse_with = "parse_timeout_with_default")]
-    timeout: Option<u32>,  // -> APP_CONFIG_TIMEOUT (with optional parser that provides defaults)
+    timeout_duration: Option<Duration>, // -> APP_CONFIG_TIMEOUT_DURATION (with custom parser that provides defaults)
+
+    #[env_config(nested)]
+    db_config: DatabaseConfig,
+
+    #[env_config(nested)]
+    redis_config: RedisConfig,
 }
 
+#[derive(Debug, EnvConfig)]
 // Use no_prefix to disable the struct name prefix
-#[derive(Debug, EnvConfig)]
 #[env_config(no_prefix)]
-struct SimpleConfig {
-    database_url: String,                          // -> DATABASE_URL (no prefix)
-    port: u16,                                     // -> PORT (no prefix)
+struct DatabaseConfig {
+    postgres_url: String, // -> POSTGRES_URL
+    #[env_config(env = "DB_NAME", default = "mydb")]
+    database: String, // -> DB_NAME (with default)
 }
 
-// Use custom prefix instead of struct name
 #[derive(Debug, EnvConfig)]
-#[env_config(prefix = "APP")]
-struct CustomConfig {
-    database_url: String,                          // -> APP_DATABASE_URL (custom prefix)
-    port: u16,                                     // -> APP_PORT (custom prefix)
+// Use custom prefix instead of struct name
+#[env_config(prefix = "REDIS")]
+struct RedisConfig {
+    url: String, // -> REDIS_URL
+    #[env_config(default = "5")]
+    cache_timeout: u64, // -> REDIS_CACHE_TIMEOUT (with default)
 }
 
 #[derive(Debug)]
-struct Point { x: f64, y: f64 }
+struct Point {
+    x: f64,
+    y: f64,
+}
 
 fn parse_point(s: String) -> Point {
-    let parts: Vec<&str> = s.split(',').collect();
+    let (x, y) = s.split_once(',').expect("Invalid format");
     Point {
-        x: parts[0].parse().expect("Invalid x coordinate"),
-        y: parts[1].parse().expect("Invalid y coordinate"),
+        x: x.trim().parse().expect("Invalid x coordinate"),
+        y: y.trim().parse().expect("Invalid y coordinate"),
     }
 }
 
-fn main() -> Result<(), env_config::EnvConfigError> {
-    let config = AppConfig::from_env()?;
-    println!("Config: {config:?}");
-    Ok(())
-}
-```
-
-### Nested Configuration
-
-You can compose complex configs from smaller structs using the `nested` attribute:
-
-```rust
-use env_config::EnvConfig;
-
-#[derive(Debug, EnvConfig)]
-struct DatabaseConfig {
-    #[env_config(env = "DB_HOST")]
-    host: String,                               // -> DB_HOST
-    #[env_config(env = "DB_PORT")]
-    port: u16,                                  // -> DB_PORT
-    #[env_config(env = "DB_NAME", default = "myapp")]
-    database: String,                           // -> DB_NAME (with default)
-}
-
-#[derive(Debug, EnvConfig)]
-struct RedisConfig {
-    #[env_config(env = "REDIS_URL")]
-    url: String,                                // -> REDIS_URL
-    #[env_config(env = "REDIS_TIMEOUT", default = "5")]
-    timeout: u64,                               // -> REDIS_TIMEOUT (with default)
-}
-
-#[derive(Debug, EnvConfig)]
-struct AppConfig {
-    #[env_config(nested)]
-    database: DatabaseConfig,                   // Loads from DB_* env vars
-    
-    #[env_config(nested)]
-    redis: RedisConfig,                         // Loads from REDIS_* env vars
-    
-    #[env_config(env = "APP_NAME")]
-    app_name: String,                           // -> APP_NAME
-    
-    #[env_config(default = "info")]
-    log_level: String,                          // -> LOG_LEVEL (with default)
+fn parse_timeout_with_default(s: String) -> Duration {
+    Duration::from_secs(s.parse::<u64>().unwrap_or(100))
 }
 
 fn main() -> Result<(), env_config::EnvConfigError> {
+    // Set some environment variables for demonstration
+    //
+    // # Safety
+    // This example cannot run in parallel with other programs that set/remove ENV variables
+    unsafe {
+        std::env::set_var("APP_CONFIG_URL", "0.0.0.0:8080");
+        std::env::set_var("APP_CONFIG_TIMEOUT", "42");
+        std::env::set_var("DEBUG_MODE", "true");
+        std::env::set_var("APP_CONFIG_POSITION", "42.43, 893.2123");
+        std::env::set_var("APP_CONFIG_TIMEOUT_DURATION", "243");
+        std::env::set_var("POSTGRES_URL", "postgres://postgres:postgres@0.0.0.0:5432");
+        std::env::set_var("REDIS_URL", "redis://localhost:6379");
+    }
     let config = AppConfig::from_env()?;
-    println!("Config: {:#?}", config);
+    println!("AppConfig: {config:#?}");
+
     Ok(())
 }
 ```
