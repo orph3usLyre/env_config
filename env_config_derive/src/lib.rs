@@ -3,6 +3,15 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Data, DeriveInput, Field, Fields, Lit, Meta, parse_macro_input, spanned::Spanned};
 
+const SUPPORTED_STRUCT_ATTRIBUTES: &[&str] = &[r#"prefix = "<PREFIX>""#, "no_prefix"];
+const SUPPORTED_FIELD_ATTRIBUTES: &[&str] = &[
+    "skip",
+    "nested",
+    r#"env = "<VAR_NAME>""#,
+    "default = <DEFAULT_VALUE>",
+    r#"parse_with = "<PARSER_FN>""#,
+];
+
 #[derive(Debug, Clone)]
 enum PrefixConfig {
     /// Use struct name as prefix (default behavior)
@@ -114,30 +123,33 @@ fn parse_struct_prefix_config(input: &DeriveInput) -> syn::Result<PrefixConfig> 
     for attr in &input.attrs {
         if attr.path().is_ident("env_config") {
             if let Meta::List(meta_list) = &attr.meta {
-                let nested_result = meta_list.parse_args_with(
+                let nested_metas = meta_list.parse_args_with(
                     syn::punctuated::Punctuated::<syn::Meta, syn::Token![,]>::parse_terminated,
-                );
+                )?;
 
-                if let Ok(nested_metas) = nested_result {
-                    for nested in nested_metas {
-                        match nested {
-                            Meta::Path(path) if path.is_ident("no_prefix") => {
-                                prefix_config = PrefixConfig::None;
+                for nested in nested_metas {
+                    match nested {
+                        Meta::Path(path) if path.is_ident("no_prefix") => {
+                            prefix_config = PrefixConfig::None;
+                        }
+                        Meta::NameValue(name_value) if name_value.path.is_ident("prefix") => {
+                            if let syn::Expr::Lit(syn::ExprLit {
+                                lit: Lit::Str(lit_str),
+                                ..
+                            }) = &name_value.value
+                            {
+                                prefix_config = PrefixConfig::Custom(lit_str.value());
                             }
-                            Meta::NameValue(name_value) if name_value.path.is_ident("prefix") => {
-                                if let syn::Expr::Lit(syn::ExprLit {
-                                    lit: Lit::Str(lit_str),
-                                    ..
-                                }) = &name_value.value
-                                {
-                                    prefix_config = PrefixConfig::Custom(lit_str.value());
-                                }
-                            }
-                            o => return Err(syn::Error::new(o.span(), "Unsupported meta")),
+                        }
+                        o => {
+                            return Err(syn::Error::new(
+                                o.span(),
+                                format!(
+                                    "Unsupported struct attribute. Supported attributes include: {SUPPORTED_STRUCT_ATTRIBUTES:?}"
+                                ),
+                            ));
                         }
                     }
-                } else {
-                    return Err(syn::Error::new(meta_list.span(), "Invalid syntax"));
                 }
             }
         }
@@ -205,7 +217,14 @@ fn generate_field_assignment(
                             {
                                 parse_with = Some(name_value.value.clone());
                             }
-                            other => return Err(syn::Error::new(other.span(), "Unsupported meta")),
+                            other => {
+                                return Err(syn::Error::new(
+                                    other.span(),
+                                    format!(
+                                        "Unsupported field attribute. Supported attributes: {SUPPORTED_FIELD_ATTRIBUTES:?}"
+                                    ),
+                                ));
+                            }
                         }
                     }
                 }
