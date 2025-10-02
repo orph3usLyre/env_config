@@ -1,10 +1,5 @@
-# env_config
+#![allow(dead_code)]
 
-A rust derive macro library for loading configuration from environment variables.
-
-## Usage
-
-```rust
 use env_config::EnvConfig;
 use std::time::Duration;
 
@@ -99,28 +94,3 @@ fn main() -> Result<(), env_config::EnvConfigError> {
 
     Ok(())
 }
-```
-
-## Derive Macro Attributes
-
-**Struct attributes:**
-- **`#[env_config(no_prefix)]`**: Don't use struct name as prefix for field names
-- **`#[env_config(prefix = "PREFIX")]`**: Use custom prefix instead of struct name
-
-**Field attributes:**
-- **No attribute**: Field name is prefixed with struct name and converted to UPPER_SNAKE_CASE for env var name
-- **`#[env_config(env = "VAR_NAME")]`**: Use custom environment variable name (overrides prefix)
-- **`#[env_config(default = "value")]`**: Provide default value if env var not set
-- **`#[env_config(skip)]`**: Skip this field (uses `Default::default()`)
-- **`#[env_config(parse_with = "function_name")]`**: Use custom parser function (takes `String`, returns `T`)
-- **`#[env_config(nested)]`**: Treat field as nested EnvConfig struct (calls `T::from_env()`)
-
-## Error variants
-
-- `EnvConfigError::Missing(String)`: Environment variable is not set (Key)
-- `EnvConfigError::Parse(String, String)`: Failed to parse value (Key, Value)
-
-
-## License
-
-Apache License 2.0
