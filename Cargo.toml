@@ -7,7 +7,7 @@ description = "Simple derive macro library for loading configuration structs fro
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["config", "env"]
-repository = "https://github.com/orph3usLyre/env_config"
+repository = "https://github.com/orph3usLyre/env_cfg"
 
 [dependencies]
 env_cfg_derive = { path = "env_cfg_derive", version = "0.2.0" }
