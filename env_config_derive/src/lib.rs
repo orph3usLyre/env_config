@@ -1,7 +1,7 @@
 use heck::ToSnekCase;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Field, Fields, Lit, Meta, parse_macro_input};
+use syn::{Data, DeriveInput, Field, Fields, Lit, Meta, parse_macro_input, spanned::Spanned};
 
 #[derive(Debug, Clone)]
 enum PrefixConfig {
@@ -42,27 +42,50 @@ impl PrefixConfig {
 /// - `#[env_config(parse_with = "function_name")]` - use custom parser function (signature: `fn(String) -> T`)
 /// - `#[env_config(nested)]` - treat field as nested EnvConfig struct (calls T::from_env())
 ///
-/// Note: Optional fields are automatically detected from Option<T> type - no attribute needed!
 #[proc_macro_derive(EnvConfig, attributes(env_config))]
 pub fn derive_env_config(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    let name = &input.ident;
-
     // Parse struct-level attributes for prefix configuration
-    let prefix_config = parse_struct_prefix_config(&input);
+    let prefix_config = match parse_struct_prefix_config(&input).map_err(|e| e.into_compile_error())
+    {
+        Ok(config) => config,
+        Err(e) => return e.into(),
+    };
 
+    expand_env_config(input, &prefix_config)
+        .unwrap_or_else(syn::Error::into_compile_error)
+        .into()
+}
+
+fn expand_env_config(
+    input: DeriveInput,
+    prefix_config: &PrefixConfig,
+) -> syn::Result<proc_macro2::TokenStream> {
+    let name = &input.ident;
     let fields = match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => &fields.named,
-            _ => panic!("EnvConfig can only be derived for structs with named fields"),
+            o => {
+                return Err(syn::Error::new(
+                    o.span(),
+                    "EnvConfig can only be derived for structs with named fields",
+                ));
+            }
         },
-        _ => panic!("EnvConfig can only be derived for structs"),
+        _ => {
+            return Err(syn::Error::new(
+                input.span(),
+                "EnvConfig can only be derived for structs",
+            ));
+        }
     };
 
-    let field_assignments = fields
-        .iter()
-        .map(|field| generate_field_assignment(field, &prefix_config));
+    let field_assignments: Result<Vec<_>, _> = fields
+        .into_iter()
+        .map(|field| generate_field_assignment(field, &prefix_config))
+        .collect();
+    let field_assignments = field_assignments?;
 
     let expanded = quote! {
         impl ::env_config::EnvConfig for #name {
@@ -75,11 +98,10 @@ pub fn derive_env_config(input: TokenStream) -> TokenStream {
             }
         }
     };
-
-    TokenStream::from(expanded)
+    Ok(expanded)
 }
 
-fn parse_struct_prefix_config(input: &DeriveInput) -> PrefixConfig {
+fn parse_struct_prefix_config(input: &DeriveInput) -> syn::Result<PrefixConfig> {
     let struct_name = input.ident.to_string();
 
     // Convert PascalCase struct name to snake_case for the prefix
@@ -111,15 +133,17 @@ fn parse_struct_prefix_config(input: &DeriveInput) -> PrefixConfig {
                                     prefix_config = PrefixConfig::Custom(lit_str.value());
                                 }
                             }
-                            _ => {}
+                            o => return Err(syn::Error::new(o.span(), "Unsupported meta")),
                         }
                     }
+                } else {
+                    return Err(syn::Error::new(meta_list.span(), "Invalid syntax"));
                 }
             }
         }
     }
 
-    prefix_config
+    Ok(prefix_config)
 }
 
 fn is_option_type(ty: &syn::Type) -> bool {
@@ -136,7 +160,7 @@ fn is_option_type(ty: &syn::Type) -> bool {
 fn generate_field_assignment(
     field: &Field,
     prefix_config: &PrefixConfig,
-) -> proc_macro2::TokenStream {
+) -> syn::Result<proc_macro2::TokenStream> {
     let field_name = field.ident.as_ref().unwrap();
     let field_name_str = field_name.to_string();
     let field_type = &field.ty;
@@ -181,7 +205,7 @@ fn generate_field_assignment(
                             {
                                 parse_with = Some(name_value.value.clone());
                             }
-                            _ => {}
+                            other => return Err(syn::Error::new(other.span(), "Unsupported meta")),
                         }
                     }
                 }
@@ -191,33 +215,42 @@ fn generate_field_assignment(
 
     // Validate attribute combinations
     if skip && (default_expr.is_some() || parse_with.is_some() || is_nested) {
-        panic!("Cannot use 'skip' with other attributes");
+        return Err(syn::Error::new(
+            field.span(),
+            "Cannot use 'skip' with other attributes",
+        ));
     }
 
     if is_nested && (default_expr.is_some() || parse_with.is_some()) {
-        panic!("Cannot use 'nested' with 'default' or 'parse_with' attributes");
+        return Err(syn::Error::new(
+            field.span(),
+            "Cannot use 'nested' with 'default' or 'parse_with' attributes",
+        ));
     }
 
     if parse_with.is_some() && default_expr.is_some() {
-        panic!("Cannot use both 'parse_with' and 'default' attributes on the same field");
+        return Err(syn::Error::new(
+            field.span(),
+            "Cannot use both 'parse_with' and 'default' attributes on the same field",
+        ));
     }
 
     // Handle skipped fields
     if skip {
-        return quote! {
+        return Ok(quote! {
             #field_name: Default::default()
-        };
+        });
     }
 
     // Handle nested EnvConfig structs
     if is_nested {
-        return quote! {
+        return Ok(quote! {
             #field_name: #field_type::from_env()
                 .map_err(|e| ::env_config::EnvConfigError::Parse(
                     format!("nested {}", stringify!(#field_type)),
                     e.to_string()
                 ))?
-        };
+        });
     }
 
     // Handle fields with custom parser
@@ -230,37 +263,38 @@ fn generate_field_assignment(
             let fn_name = lit_str.value();
             syn::Ident::new(&fn_name, lit_str.span())
         } else {
-            return quote! {
-                compile_error!("parse_with must be a string literal containing the function name")
-            };
+            return Err(syn::Error::new(
+                parser_fn.span(),
+                "parse_with must be a string literal containing the function name",
+            ));
         };
 
         return if is_option_type(field_type) {
-            quote! {
+            Ok(quote! {
                 #field_name: ::env_config::env_var_optional_with_parser(#env_name, #parser_ident)?
-            }
+            })
         } else {
-            quote! {
+            Ok(quote! {
                 #field_name: ::env_config::env_var_with_parser(#env_name, #parser_ident)?
-            }
+            })
         };
     }
 
     // Handle default
     if let Some(default) = default_expr {
-        return quote! {
+        return Ok(quote! {
             #field_name: ::env_config::env_var_or_parse(#env_name, #default)?
-        };
+        });
     }
 
     // Standard field - type determines behavior (T vs Option<T>)
     if is_option_type(field_type) {
-        quote! {
+        Ok(quote! {
             #field_name: ::env_config::env_var_optional(#env_name)?
-        }
+        })
     } else {
-        quote! {
+        Ok(quote! {
             #field_name: ::env_config::env_var(#env_name)?
-        }
+        })
     }
 }

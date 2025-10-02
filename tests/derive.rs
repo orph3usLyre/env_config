@@ -11,7 +11,6 @@ struct AutoDerivedConfig {
     max_connections: u32, // -> MAX_CONNECTIONS
     #[env_config(default = "8080")]
     port: u16, // -> PORT (with default)
-    #[env_config(optional)]
     timeout: Option<u64>, // -> TIMEOUT (optional)
     #[env_config(skip)]
     internal_state: String, // Skipped - not loaded from env, uses Default::default()
@@ -23,7 +22,7 @@ struct CustomAttributesDerivedConfig {
     host: String, // -> DB_HOST (custom name)
     #[env_config(env = "DB_PORT", default = "5432")]
     port: u16, // -> DB_PORT (custom name + default)
-    #[env_config(env = "DB_TIMEOUT", optional)]
+    #[env_config(env = "DB_TIMEOUT")]
     timeout: Option<u64>, // -> DB_TIMEOUT (custom name + optional)
     #[env_config(skip)]
     connection_pool: Vec<String>, // Skipped, uses Default::default()
@@ -32,13 +31,11 @@ struct CustomAttributesDerivedConfig {
 #[derive(Debug, EnvConfig)]
 #[env_config(no_prefix)]
 struct TypeVarietyTest {
-    string_field: String, // -> STRING_FIELD
-    int_field: i32,       // -> INT_FIELD
-    float_field: f64,     // -> FLOAT_FIELD
-    bool_field: bool,     // -> BOOL_FIELD
-    #[env_config(optional)]
-    optional_int: Option<i32>, // -> OPTIONAL_INT
-    #[env_config(optional)]
+    string_field: String,            // -> STRING_FIELD
+    int_field: i32,                  // -> INT_FIELD
+    float_field: f64,                // -> FLOAT_FIELD
+    bool_field: bool,                // -> BOOL_FIELD
+    optional_int: Option<i32>,       // -> OPTIONAL_INT
     optional_string: Option<String>, // -> OPTIONAL_STRING
 }
 
@@ -49,7 +46,7 @@ struct MixedAttributesTest {
     field1: String, // -> CUSTOM_NAME
     #[env_config(env = "ANOTHER_CUSTOM", default = "42")]
     field2: i32, // -> ANOTHER_CUSTOM (with default)
-    #[env_config(env = "OPTIONAL_CUSTOM", optional)]
+    #[env_config(env = "OPTIONAL_CUSTOM")]
     field3: Option<String>, // -> OPTIONAL_CUSTOM (optional)
     auto_field: String, // -> AUTO_FIELD (auto snake_case)
     #[env_config(skip)]
@@ -63,7 +60,7 @@ struct CustomParserTest {
     custom_field: CustomStruct, // -> CUSTOM_FIELD
     #[env_config(env = "DOUBLED", parse_with = "parse_doubled_int")]
     doubled_value: i32, // -> DOUBLED (custom name + custom parser)
-    #[env_config(optional, parse_with = "parse_doubled_int")]
+    #[env_config(parse_with = "parse_doubled_int")]
     optional_doubled: Option<i32>, // -> OPTIONAL_DOUBLED (optional + custom parser)
     normal_field: String, // -> NORMAL_FIELD
 }
@@ -247,9 +244,8 @@ fn should_err_with_missing_required_field() {
     struct ErrorHandlingTest {
         #[env_config(default = "default_value")]
         with_default: String, // -> WITH_DEFAULT
-        #[env_config(optional)]
         optional_field: Option<String>, // -> OPTIONAL_FIELD
-        required_field: String, // -> REQUIRED_FIELD
+        required_field: String,         // -> REQUIRED_FIELD
     }
 
     let result =

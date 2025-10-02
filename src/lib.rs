@@ -77,7 +77,6 @@ pub use env_config_derive::EnvConfig;
 /// - **No attribute**: Field name is prefixed with struct name and converted to UPPER_SNAKE_CASE
 /// - **`#[env_config(env = "VAR_NAME")]`**: Use custom environment variable name
 /// - **`#[env_config(default = "value")]`**: Provide default value if env var not set
-/// - **`#[env_config(optional)]`**: Make field optional (must be `Option<T>`)
 /// - **`#[env_config(skip)]`**: Skip this field (must implement `Default`)
 /// - **`#[env_config(parse_with = "function_name")]`**: Use custom parser function (takes `String`, returns `T`)
 /// - **`#[env_config(nested)]`**: Treat field as nested EnvConfig struct (calls `T::from_env()`)
