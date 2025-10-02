@@ -118,6 +118,7 @@ fn parse_struct_prefix_config(input: &DeriveInput) -> syn::Result<PrefixConfig> 
 
     // Default behavior: use struct name as prefix
     let mut prefix_config = PrefixConfig::StructName(snake_case_struct_name);
+    let mut existing_struct_attribute = false;
 
     // Check for struct-level attributes
     for attr in &input.attrs {
@@ -130,7 +131,15 @@ fn parse_struct_prefix_config(input: &DeriveInput) -> syn::Result<PrefixConfig> 
                 for nested in nested_metas {
                     match nested {
                         Meta::Path(path) if path.is_ident("no_prefix") => {
-                            prefix_config = PrefixConfig::None;
+                            if !existing_struct_attribute {
+                                prefix_config = PrefixConfig::None;
+                                existing_struct_attribute = true;
+                            } else {
+                                return Err(syn::Error::new(
+                                    path.span(),
+                                    "Cannot use no_prefix with other attributes",
+                                ));
+                            }
                         }
                         Meta::NameValue(name_value) if name_value.path.is_ident("prefix") => {
                             if let syn::Expr::Lit(syn::ExprLit {
@@ -138,7 +147,15 @@ fn parse_struct_prefix_config(input: &DeriveInput) -> syn::Result<PrefixConfig> 
                                 ..
                             }) = &name_value.value
                             {
-                                prefix_config = PrefixConfig::Custom(lit_str.value());
+                                if !existing_struct_attribute {
+                                    prefix_config = PrefixConfig::Custom(lit_str.value());
+                                    existing_struct_attribute = true;
+                                } else {
+                                    return Err(syn::Error::new(
+                                        name_value.span(),
+                                        "Cannot use prefix with other attributes",
+                                    ));
+                                }
                             }
                         }
                         o => {
