@@ -44,7 +44,6 @@ pub use env_config_derive::EnvConfig;
 /// #[derive(Debug, EnvConfig)]
 /// struct AppConfig {
 ///     database_url: String,                          // -> APP_CONFIG_DATABASE_URL (required)
-///     #[env_config(optional)]
 ///     timeout: Option<u64>,                          // -> APP_CONFIG_TIMEOUT (optional)
 ///     #[env_config(env = "DEBUG_MODE")]
 ///     debug: bool,                                   // -> DEBUG_MODE (custom name)

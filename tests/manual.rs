@@ -43,7 +43,7 @@ fn should_parse_from_manual_impl() {
     assert_eq!(config.nats_seed, "test_seed");
     assert_eq!(config.port, 9090);
     assert_eq!(config.timeout, Some(30));
-    assert_eq!(config.debug, true);
+    assert!(config.debug);
 }
 
 #[test]
@@ -58,12 +58,12 @@ fn should_parse_manual_impl_with_defaults() {
     assert_eq!(config.nats_seed, "test_seed");
     assert_eq!(config.port, 8080); // default
     assert_eq!(config.timeout, None); // optional, not set
-    assert_eq!(config.debug, false); // default
+    assert!(!config.debug); // default
 }
 
 #[test]
 fn should_err_if_missing_required_var() {
-    let result = unsafe { common::with_env_vars(&[], || ManualConfig::from_env()) };
+    let result = unsafe { common::with_env_vars(&[], ManualConfig::from_env) };
     dbg!(&result);
     assert!(matches!(result, Err(EnvConfigError::Missing(_))));
 }
@@ -76,6 +76,6 @@ fn should_err_if_field_is_not_parseable() {
         ("PORT", "not_a_number"),
     ];
 
-    let result = unsafe { common::with_env_vars(ENV_KEYS_VALUES, || ManualConfig::from_env()) };
+    let result = unsafe { common::with_env_vars(ENV_KEYS_VALUES, ManualConfig::from_env) };
     assert!(matches!(result, Err(EnvConfigError::Parse(_, _))));
 }

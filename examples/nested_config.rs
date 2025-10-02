@@ -97,7 +97,7 @@ fn main() -> Result<(), env_config::EnvConfigError> {
     assert_eq!(config.database.host, "localhost");
     assert_eq!(config.database.port, 5432);
     assert_eq!(config.database.database, "production_db");
-    assert_eq!(config.database.ssl, true);
+    assert!(config.database.ssl);
 
     assert_eq!(config.redis.url, "redis://localhost:6379");
     assert_eq!(config.redis.timeout, 10);

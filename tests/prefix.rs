@@ -100,7 +100,7 @@ fn should_fail_when_using_old_env_var_names_with_default_prefix() {
     ];
 
     let result =
-        unsafe { common::with_env_vars(ENV_KEYS_VALUES, || DefaultPrefixConfig::from_env()) };
+        unsafe { common::with_env_vars(ENV_KEYS_VALUES, DefaultPrefixConfig::from_env) };
 
     // Should fail because it's looking for DEFAULT_PREFIX_CONFIG_DATABASE_URL, not DATABASE_URL
     assert!(
